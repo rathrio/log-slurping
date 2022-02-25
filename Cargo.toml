@@ -1,0 +1,19 @@
+[package]
+name = "log-parser"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+regex = "1"
+ssh2 = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# data-parallelism
+rayon = "1.5"
+# Sync client
+kafka = "0.8"
+# Async client
+rdkafka = "0.28.0"
