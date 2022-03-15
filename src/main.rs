@@ -1,4 +1,14 @@
 use kafka::producer::{Producer, Record, RequiredAcks};
+
+use rdkafka::error::KafkaError;
+use rdkafka::message::BorrowedMessage;
+use rdkafka::producer::BaseRecord;
+use rdkafka::producer::ProducerContext;
+use rdkafka::producer::ThreadedProducer;
+use rdkafka::ClientConfig;
+use rdkafka::ClientContext;
+use rdkafka::Message;
+
 use serde_json;
 use std::fs;
 use std::sync::mpsc;
@@ -91,6 +101,45 @@ fn naive_channel_write_kafka(file: &mut LogFile) {
     handle.join().unwrap();
 }
 
+struct Callback;
+impl ClientContext for Callback {}
+impl ProducerContext for Callback {
+    type DeliveryOpaque = ();
+
+    fn delivery(
+        &self,
+        delivery_result: &Result<BorrowedMessage<'_>, (KafkaError, BorrowedMessage<'_>)>,
+        _: <Self as ProducerContext>::DeliveryOpaque,
+    ) {
+        let dr = delivery_result.as_ref();
+        match dr {
+            Ok(msg) => {
+                // println!("Delivered message {:?}", msg.payload());
+            }
+            Err(e) => {
+                // eprintln!("Failed to produce message {:?}", e);
+            }
+        }
+    }
+}
+
+// ~ 6s
+fn write_rdkafka(file: &mut LogFile<'_>) {
+    let producer: ThreadedProducer<Callback> = ClientConfig::new()
+        .set("bootstrap.servers", "gary.home:9092")
+        .set("message.timeout.ms", "1000")
+        .set("queue.buffering.max.messages", "500000")
+        .create_with_context(Callback {})
+        .expect("Could not create producer");
+
+    file.for_each(|entry| {
+        let json = serde_json::to_string(&entry).unwrap();
+        let record = BaseRecord::to("dhcp").key(&entry.remote_id).payload(&json);
+        producer.send(record).expect("Failed to produce message");
+    });
+}
+
+// #[tokio::main]
 fn main() {
     let contents = fs::read_to_string("./logs/dhcp-log-large.log").unwrap();
     let lines = contents.lines();
@@ -100,4 +149,5 @@ fn main() {
     // channel_write_stdout(&mut file);
     // naive_write_kafka(&mut file);
     // naive_channel_write_kafka(&mut file);
+    write_rdkafka(&mut file);
 }

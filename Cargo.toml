@@ -16,4 +16,6 @@ rayon = "1.5"
 # Sync client
 kafka = "0.8"
 # Async client
-rdkafka = "0.28.0"
+# tokio = { version = "1.17.0", features = ["full"] }
+# rdkafka = { version = "0.28", features = ["cmake-build"] }
+rdkafka = { version = "0.25", default-features = false }
